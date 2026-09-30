@@ -6,6 +6,7 @@ import * as auth from './views/auth.js';
 import * as cliente from './views/cliente.js';
 import * as lavador from './views/lavador.js';
 import * as admin from './views/admin.js';
+import { rota } from './views/rota.js';
 import { palco } from './views/palco.js';
 
 const routes = [
@@ -19,6 +20,7 @@ const routes = [
   [/^\/lavador$/, lavador.home, { role: 'lavador' }],
   [/^\/lavador\/pedido\/([\w-]+)$/, lavador.job, { role: 'lavador' }],
   [/^\/admin$/, admin.home, { role: 'admin' }],
+  [/^\/lavador\/rota$/, rota, { role: 'lavador' }],
 ];
 
 const dot = h('span', { class: 'live-dot', title: 'Conexão em tempo real' });

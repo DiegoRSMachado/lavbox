@@ -8,7 +8,7 @@ export async function palco({ root }) {
   const q = (slot) => `${base}?slot=${slot}${mode === 'local' ? '&mode=local' : ''}#/`;
   const frame = (slot, title) => h('div', { class: 'stage-col' },
     h('div', { class: 'stage-label' }, title),
-    h('div', { class: 'phone' }, h('iframe', { src: q(slot), title, loading: 'eager', allow: 'geolocation' })));
+    h('div', { class: 'phone' }, h('iframe', { src: q(slot), title, loading: 'eager', allow: 'geolocation; camera' })));
   mount(root, 
     h('div', { class: 'stage' },
       frame('cliente', '📱 Cliente'),

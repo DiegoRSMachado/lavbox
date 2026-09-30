@@ -46,6 +46,21 @@ export async function geocode(query) {
   } finally { clearTimeout(timer); }
 }
 
+/** Rota do dia: linha cinza tracejada = ordem de aceite; linha ciano = ordem otimizada, com paradas numeradas. */
+export function drawRoute(box, { start, antes, depois }) {
+  const m = initMap(box, { center: start, zoom: 12 });
+  if (!m) return;
+  const L = window.L;
+  const pts = (arr) => [start, ...arr].map((p) => [p.lat, p.lng]);
+  L.polyline(pts(antes), { color: '#8ea3c7', weight: 3, dashArray: '6 8', opacity: 0.9 }).addTo(m.map);
+  L.polyline(pts(depois), { color: '#22d3ee', weight: 4 }).addTo(m.map);
+  L.marker([start.lat, start.lng], { icon: L.divIcon({ className: 'washer-pin', html: '🏁', iconSize: [28, 28], iconAnchor: [14, 14] }), keyboard: false }).addTo(m.map);
+  depois.forEach((p, i) => {
+    L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'stop-pin', html: String(i + 1), iconSize: [24, 24], iconAnchor: [12, 12] }), keyboard: false }).addTo(m.map);
+  });
+  m.map.fitBounds(pts(depois), { padding: [28, 28] });
+}
+
 const DURACAO_DEMO_MS = 90_000;   // o deslocamento simulado dura 90 s
 const DISTANCIA_INICIAL_KM = 3;   // o lavador "sai" a ~3 km do cliente
 

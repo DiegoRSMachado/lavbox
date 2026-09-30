@@ -1,6 +1,7 @@
 import { mount, h, go, money, actionButton, toast, badge, stars } from '../ui.js';
 import { addonNames, vehicleIcon, statusLabel } from '../config.js';
 import { startTracking } from './map.js';
+import { openScanner, parseQr } from './qr.js';
 import { orderCard, kv, isActive, makeRefresher, progressList } from './common.js';
 
 // ============ PAINEL ============
@@ -35,6 +36,7 @@ export async function home({ root, me, api, live }) {
       h('div', { class: 'seg' },
         h('button', { type: 'button', class: tab === 'disp' ? 'on' : '', onclick: () => { tab = 'disp'; paint({ available, jobs }); } }, `Disponíveis (${list.length})`),
         h('button', { type: 'button', class: tab === 'meus' ? 'on' : '', onclick: () => { tab = 'meus'; paint({ available, jobs }); } }, `Meus serviços (${mine.length})`)),
+      h('a', { class: 'btn ghost sm', href: '#/lavador/rota' }, '🗺 Roteiro do dia · otimizar rota'),
       tab === 'disp'
         ? (washer?.disponivel
           ? (list.length ? list.map((o) => orderCard(o, {
@@ -68,7 +70,8 @@ export async function job({ root, params, api, live, onLeave }) {
   const id = params[0];
   let pin = '';
   let stopTrack = null;
-  onLeave(() => stopTrack?.());
+  let closeScan = null;
+  onLeave(() => { stopTrack?.(); closeScan?.(); });
 
   const load = async () => {
     const o = await api.order(id);
@@ -83,12 +86,24 @@ export async function job({ root, params, api, live, onLeave }) {
     const pinInput = h('input', { class: 'pin-input', inputmode: 'numeric', maxlength: 6, autocomplete: 'one-time-code', placeholder: '••••••', 'aria-label': 'Código de 6 dígitos do cliente',
       oninput: (e) => { pin = e.target.value.replace(/\D/g, '').slice(0, 6); e.target.value = pin; } });
     pinInput.value = pin;
+    // QR: lê o código do cliente e inicia o serviço (mesmas regras do PIN digitado: servidor valida e limita tentativas)
+    const scanBtn = actionButton('📷 Ler QR do cliente', async () => {
+      closeScan?.();
+      closeScan = openScanner(async (text) => {
+        try {
+          const lido = parseQr(text, id);
+          await api.startService(id, lido);
+          toast('Serviço iniciado pelo QR!', 'ok');
+          await refresh();
+        } catch (e) { toast(e.message, 'err'); }
+      });
+    }, 'btn ghost');
 
     const step = {
       confirmado: () => actionButton('🚗 Sair para o atendimento', () => api.advance(id).then(() => refresh())),
       a_caminho: () => actionButton('📍 Cheguei ao local', () => api.advance(id).then(() => refresh())),
       chegou: () => h('div', { class: 'card' }, h('h3', {}, 'Iniciar com o código do cliente'),
-        h('p', { class: 'muted small' }, 'Peça o código de 6 dígitos ao cliente. O serviço só inicia com ele (5 erros bloqueiam por 5 min).'), pinInput,
+        h('p', { class: 'muted small' }, 'Peça o código de 6 dígitos ao cliente. O serviço só inicia com ele (5 erros bloqueiam por 5 min).'), scanBtn, pinInput,
         actionButton('▶ Iniciar lavagem', async () => { if (pin.length !== 6) throw new Error('Digite os 6 dígitos.'); await api.startService(id, pin); pin = ''; toast('Serviço iniciado!', 'ok'); await refresh(); })),
       em_servico: () => actionButton('✅ Finalizar lavagem', () => api.advance(id).then(() => refresh())),
     }[o.status];

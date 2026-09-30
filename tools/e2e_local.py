@@ -50,16 +50,41 @@ with sync_playwright() as p:
     expect(A.locator(".washer-pin")).to_be_visible(timeout=10000); A.wait_for_timeout(600); shot(A, "10b_cliente_mapa_carro")
     expect(A.get_by_text("a caminho", exact=False).first).to_be_visible(timeout=10000)
     B.get_by_role("button", name="Cheguei ao local").click()
-    expect(A.locator(".pin")).to_be_visible(timeout=10000); shot(A, "11_cliente_pin")
+    expect(A.locator(".pin")).to_be_visible(timeout=10000); expect(A.locator("canvas.qr")).to_be_visible(); shot(A, "11_cliente_pin")
     pin = A.locator(".pin").inner_text()
+    oid = A.url.split("/pedido/")[1].split("?")[0]
+
+    # câmera FALSA: troca getUserMedia por um canvas que desenha o QR (testa video -> jsQR -> start_service de ponta a ponta)
+    def camera_com_qr(payload):
+        B.evaluate("""(payload) => {
+          const qr = window.qrcode(0, 'M'); qr.addData(payload); qr.make();
+          const n = qr.getModuleCount(), q = 4, c = 8, S = (n + 2 * q) * c;
+          const cv = document.createElement('canvas'); cv.width = S; cv.height = S; const x = cv.getContext('2d'); let t = 0;
+          const draw = () => { x.fillStyle = '#fff'; x.fillRect(0, 0, S, S); x.fillStyle = '#000';
+            for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (qr.isDark(r, k)) x.fillRect((k + q) * c, (r + q) * c, c, c);
+            x.fillStyle = (t++ % 2) ? '#fff' : '#eee'; x.fillRect(0, 0, 3, 3); };   // pixel que alterna: força novos quadros
+          draw(); setInterval(draw, 60);
+          const stream = cv.captureStream(15);
+          navigator.mediaDevices.getUserMedia = async () => stream; }""", payload)
+
+    # QR de OUTRO pedido deve ser recusado
+    camera_com_qr(f"LAVBOX|00000000-0000-4000-8000-000000000000|{pin}")
+    B.get_by_role("button", name="Ler QR do cliente").click()
+    expect(B.get_by_text("Este QR é de outro pedido.")).to_be_visible(timeout=10000)
+    # QR lixo também
+    camera_com_qr("https://exemplo.com/qualquer-coisa")
+    B.get_by_role("button", name="Ler QR do cliente").click()
+    expect(B.get_by_text("Este QR não é do LAVBOX.")).to_be_visible(timeout=10000)
     # PIN errado deve falhar
     B.get_by_label("Código de 6 dígitos do cliente").fill("000000" if pin != "000000" else "111111")
     B.get_by_role("button", name="Iniciar lavagem").click()
     expect(B.get_by_text("PIN incorreto. Restam 4 tentativa(s).")).to_be_visible(); shot(B, "12_lavador_pin_errado")
     assert len(pin) == 6, "PIN deve ter 6 dígitos"
-    B.get_by_label("Código de 6 dígitos do cliente").fill(pin)
-    B.get_by_role("button", name="Iniciar lavagem").click()
-    expect(A.get_by_text("Lavagem em andamento")).to_be_visible(timeout=10000)
+    # QR correto inicia o serviço (sem digitar nada)
+    camera_com_qr(f"LAVBOX|{oid}|{pin}")
+    B.get_by_role("button", name="Ler QR do cliente").click()
+    expect(A.get_by_text("Lavagem em andamento")).to_be_visible(timeout=15000)
+    print("QR: câmera→jsQR→início do serviço ✔ (QR de outro pedido e QR inválido recusados)")
     B.get_by_role("button", name="Finalizar lavagem").click()
     expect(A.get_by_role("button", name="Confirmar pagamento")).to_be_visible(timeout=10000); shot(A, "13_cliente_pagar")
     A.get_by_role("button", name="Confirmar pagamento").click()
@@ -89,6 +114,15 @@ with sync_playwright() as p:
     shot(C, "16_cadastro_lavador")
     C.get_by_role("button", name="Criar conta").click()
     expect(C.get_by_role("heading", name="Olá, Bruno")).to_be_visible(); shot(C, "17_lavador_home")
+
+    # ---- rota otimizada (prestador): simulação de 5 paradas ----
+    C.goto(BASE + "#/lavador/rota")
+    C.get_by_role("button", name="Simular 5 paradas").click()
+    expect(C.get_by_text("ordem otimizada")).to_be_visible(); expect(C.locator(".leaflet-container")).to_be_visible()
+    assert C.locator("ol.legs li").count() == 5, "a rota deveria ter 5 paradas"
+    pct = C.locator(".eco-tile b").inner_text(); assert pct.startswith("−") and pct != "−0%", f"economia inesperada: {pct}"
+    C.wait_for_timeout(500); shot(C, "20_rota")
+    print(f"Rota: economia {pct} na simulação ✔")
 
     # ---- admin: painel de KPIs (conta e dados criados só no teste; nada disso existe no repo) ----
     D = ctx.new_page(); D.goto(BASE)

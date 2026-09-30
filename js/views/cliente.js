@@ -1,6 +1,7 @@
 import { mount, h, go, money, actionButton, toast, stars, badge, fmtDateTime } from '../ui.js';
 import { addonNames, AGUA_CONVENCIONAL, VEHICLE_TYPES, calcPrice, vehicleIcon, statusLabel } from '../config.js';
 import { initMap, geocode, startTracking } from './map.js';
+import { qrCanvas, qrPayload } from './qr.js';
 import { orderCard, progressList, kv, isActive, makeRefresher } from './common.js';
 
 // ============ HOME ============
@@ -212,7 +213,7 @@ export async function order({ root, params, api, live, onLeave }) {
       trackCard,
       o.washer ? h('div', { class: 'card washer-card' }, h('span', { class: 'avatar' }, o.washer.nome?.[0] ?? '?'),
         h('div', {}, h('strong', {}, o.washer.nome), h('div', { class: 'muted' }, 'Seu profissional LAVBOX'))) : null,
-      pin ? h('div', { class: 'card pin-card' }, h('div', { class: 'muted' }, 'Código de início do serviço'), h('div', { class: 'pin' }, pin),
+      pin ? h('div', { class: 'card pin-card' }, h('div', { class: 'muted' }, 'Código de início do serviço'), h('div', { class: 'pin' }, pin), h('div', { class: 'qr-wrap' }, qrCanvas(qrPayload(o.id, pin))),
         h('p', { class: 'muted small' }, 'Só passe o código quando o lavador chegar. Ele confirma que o serviço realmente começou.')) : null,
       o.status === 'finalizado' ? h('div', { class: 'card' }, h('h3', {}, `Pagar ${money(o.preco_total)}`),
         h('div', { class: 'chips' }, [['pix', 'PIX'], ['cartao', 'Cartão'], ['carteira', 'Carteira']].map(([k, l]) =>
