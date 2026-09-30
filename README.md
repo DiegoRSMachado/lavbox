@@ -1,61 +1,58 @@
 # LAVBOX · Premium Car Care
 
 PWA de demonstração do projeto **LAVBOX** (lavagem automotiva sob demanda) — SENAC Innovaday, Faculdade de Tecnologia e Inovação Senac-DF.
-Mostra cadastro de **clientes** e **lavadores**, a jornada de pedido e o **acompanhamento em tempo real** entre os dois perfis.
+Cadastro de **clientes** e **lavadores**, pedido em 5 telas, **acompanhamento em tempo real**, mapa, código/QR de início, rota otimizada do prestador e painel do administrador.
 
 > Ambiente de demonstração acadêmica. Use apenas dados fictícios. Pagamento simulado (nenhum dado financeiro é coletado).
 
-## Arquitetura
+## Endereços
+- **App:** https://diegorsmachado.github.io/lavbox/ · **Palco:** `/#/palco` · **Offline:** `/?mode=local#/palco`
+- **Supabase:** projeto `lavbox-demo` (ref `kpgzmedfxmatmuvujdhv`, região sa-east-1) · painel: https://supabase.com/dashboard/project/kpgzmedfxmatmuvujdhv
+- **Documentação:** `docs/ESTADO.md` (**ler primeiro**), `docs/ARQUITETURA.md` (ADRs), `docs/SPEC.md`, `docs/ROTEIRO_APRESENTACAO.md`, slides em `docs/apresentacao/`.
 
+## Continuar em casa (passo a passo)
+```bash
+git clone https://github.com/DiegoRSMachado/lavbox && cd lavbox
+python3 -m http.server 8765                # abrir http://localhost:8765/?mode=local#/palco  (offline) ou sem ?mode=local (Supabase real)
+node tools/test_geo.mjs && node tools/test_route.mjs        # testes unitários (Node 22+)
+pip install playwright && python3 tools/e2e_local.py        # E2E completo em modo offline (precisa de Chromium)
+```
+- **Deploy:** cada `git push` na `main` publica sozinho no GitHub Pages (sem build). O service worker usa rede primeiro, então a versão nova aparece ao recarregar.
+- **Banco:** ver `supabase/README.md` (ordem das migrations, conta admin, seed, testes SQL).
+- **Sem build e sem CDN em runtime:** `vendor/` tem supabase-js, Leaflet, qrcode-generator e jsQR.
+
+## Arquitetura
 ```
 GitHub Pages (estático, HTTPS)
 └─ PWA vanilla (ES modules, sem build)
-   ├─ js/api.js ── escolhe o adapter
-   │    ├─ adapters/supabase.js   produção da demo (Auth + Postgres/RLS + Realtime)
-   │    └─ adapters/local.js      fallback OFFLINE (?mode=local): localStorage + BroadcastChannel
-   ├─ views/  cliente · lavador · palco (2 telas lado a lado)
-   ├─ sw.js   rede-primeiro + fallback de cache (app abre offline)
-   └─ vendor/supabase.js  (vendorizado: sem CDN em runtime)
+   ├─ js/api.js ── escolhe o adapter: supabase.js (produção) ou local.js (?mode=local, offline)
+   ├─ views/  cliente · lavador · admin · rota · palco · mapa · QR
+   ├─ lib/    geo.js (Haversine, ETA) · route.js (vizinho mais próximo)
+   └─ sw.js   rede-primeiro + fallback de cache
 
 Supabase (free)
-├─ Auth e-mail/senha
-├─ Postgres: profiles, washers, vehicles, services, addons,
-│            orders, order_private, order_secrets, order_events (auditoria append-only)
-├─ RLS em todas as tabelas + RPCs SECURITY DEFINER para toda transição de estado
-└─ Realtime (postgres_changes) em orders e order_events
+├─ Auth e-mail/senha (Confirm email DESLIGADO na demo)
+├─ Postgres + RLS em todas as tabelas
+├─ Funções SECURITY DEFINER = única porta de escrita (create/accept/advance/start_service/pay/rate/cancel, admin_kpis)
+└─ Realtime em orders e order_events
 ```
-
 Máquina de estados: `solicitado → confirmado → a_caminho → chegou → em_servico → finalizado → pago → avaliado` (+ `cancelado`).
-`em_servico` só acontece com o **PIN de 6 dígitos** do cliente, validado no servidor, com **bloqueio de 5 min após 5 erros** (o contador persiste porque `start_service` retorna o resultado em vez de lançar erro).
+`em_servico` só com o **código de 6 dígitos** (ou QR) do cliente, conferido no servidor, com **bloqueio de 5 min após 5 erros**.
 
 ## Modelo de ameaças (resumo)
-
 | Ameaça | Controle |
 |---|---|
-| IDOR entre clientes | RLS por `auth.uid()` |
-| Lavador pula etapas / finaliza sem chegar | Sem `UPDATE` direto; RPC valida a máquina de estados |
-| Lavador vê PII sem aceitar o pedido | `order_private` só para cliente e lavador aceito |
-| Registro falso de "serviço iniciado" | PIN em `order_secrets` (sem policy), conferido no servidor |
-| Escalada de papel | `role` sem privilégio de UPDATE e `CHECK (cliente\|lavador)` |
-| XSS armazenado | DOM só via `textContent` + CSP restritiva (sem inline) |
-| Vazamento de segredo | Só a chave *publishable* no frontend; `service_role` nunca |
-| Preço adulterado | Preço calculado no servidor (`create_order`) |
+| Ver dados de outro cliente | RLS por `auth.uid()` |
+| Lavador pula etapas / finaliza sem chegar | Sem `UPDATE` direto; funções validam a sequência |
+| Lavador vê endereço sem aceitar | `order_private` só para cliente e lavador aceito |
+| Falso início do serviço | Código em `order_secrets` (sem policy), conferido no servidor, com bloqueio |
+| Cadastro como admin | `admin` só por SQL privilegiado; `profiles_insert` aceita só cliente/lavador |
+| Admin lendo dados pessoais | Admin não tem policy de leitura: só agregados via `admin_kpis()` |
+| Preço adulterado | Calculado no servidor (`create_order`) |
+| XSS | DOM só via `textContent` + CSP restritiva (sem script/estilo inline) |
+| Segredo no repositório | Só a chave *publishable* no frontend; `service_role` nunca |
 
-`supabase/schema.sql` é a linha de base (migrations 0001–0003); as mudanças seguintes ficam em `supabase/migrations/` (cada uma com script de desfazer). Documentação do projeto em `docs/`. `tools/e2e_local.py` executa o fluxo completo (cliente + lavador) em modo offline, incluindo teste de XSS.
+Riscos aceitos: avisos do linter sobre funções `SECURITY DEFINER` chamáveis por usuários logados (são a API de escrita por desenho); "leaked password protection" desligada (plano gratuito); 2 índices ausentes e 1 policy duplicada (irrelevante no volume da demo).
 
-## Rodar local
-
-```bash
-python3 -m http.server 8765        # e abra http://localhost:8765/?mode=local
-pip install playwright && python3 tools/e2e_local.py   # E2E (requer Chromium)
-```
-
-## Modos de apresentação
-
-- `#/palco` — cliente e lavador lado a lado no mesmo navegador (sessões isoladas por `?slot=`).
-- `?mode=local` — 100% offline, sem depender de rede (fallback da demo).
-- Contas demo na tela inicial ("Entrar como Cliente / Lavador").
-
-## Publicar
-
-Settings → Pages → *Deploy from a branch* → `main` / `/ (root)`.
+## Limites declarados (demonstração)
+Pagamento simulado · posição do lavador simulada · distância em linha reta (sem trânsito) · painel com 120 pedidos fictícios rotulados (`is_seed`) · IA, estoque, fidelidade, assinatura, Empresas e fotos antes/depois ficam no roadmap.

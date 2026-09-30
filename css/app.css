@@ -57,7 +57,11 @@ a.order-card:hover { border-color: var(--cyan); }
 .hero { text-align: center; padding-top: 2rem; }
 .tag { color: var(--muted); letter-spacing: .2em; text-transform: uppercase; font-size: .8rem; margin-top: -.2rem; }
 .lead { margin: 1rem auto; max-width: 22rem; }
-.demo-card { text-align: left; border-style: dashed; }
+.demo-card { text-align: center; border-style: dashed; max-width: 24rem; margin: 1rem auto; }
+.demo-card .row { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-top: .6rem; }
+.demo-card .btn { width: 100%; }
+.demo-card .link { display: block; text-align: center; margin-top: .8rem; }
+.hero .stack { max-width: 24rem; margin-left: auto; margin-right: auto; }
 .link { display: inline-block; margin-top: .6rem; font-size: .9rem; }
 .link.back { margin: 0 0 .3rem; text-decoration: none; }
 .eco { background: rgba(52,211,153,.1); border-color: rgba(52,211,153,.4); }

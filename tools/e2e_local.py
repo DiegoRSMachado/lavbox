@@ -26,6 +26,12 @@ with sync_playwright() as p:
     shot(A, "03_wizard_veiculo")
     A.get_by_role("button", name="Continuar").click()                     # veículo
     expect(A.get_by_role("heading", name="Tipo de lavagem")).to_be_visible(); shot(A, "04_wizard_servico")
+    # sem serviço pré-selecionado: total em R$ 0,00 e não avança sem escolher
+    expect(A.get_by_role("button", name="Continuar · R$ 0,00")).to_be_visible()
+    A.get_by_role("button", name="Continuar").click()
+    expect(A.get_by_text("Escolha o tipo de lavagem.")).to_be_visible()
+    A.locator("button.pick", has_text="Externa + interna").click()        # escolhe o Completo: o valor aparece
+    expect(A.get_by_role("button", name="Continuar · R$ 87,50")).to_be_visible()
     A.get_by_role("button", name="Continuar").click()                     # serviço
     A.get_by_role("switch", name="Polimento").click(); shot(A, "05_wizard_extras")
     A.get_by_role("button", name="Continuar").click()
@@ -100,7 +106,9 @@ with sync_playwright() as p:
     # ---- segurança no cliente: XSS armazenado não executa ----
     A.goto(BASE + "#/cliente/novo")
     A.evaluate("window.__xss = 0")
-    A.get_by_role("button", name="Continuar").click(); A.get_by_role("button", name="Continuar").click(); A.get_by_role("button", name="Continuar").click()
+    A.get_by_role("button", name="Continuar").click()
+    A.locator("button.pick", has_text="Externa + interna").click()
+    A.get_by_role("button", name="Continuar").click(); A.get_by_role("button", name="Continuar").click()
     A.get_by_placeholder("Rua/quadra, número, complemento").fill('<img src=x onerror="window.__xss=1">')
     A.get_by_placeholder("Ex.: Asa Norte").fill("<b>Bairro</b>")
     A.get_by_role("button", name="Continuar").click()

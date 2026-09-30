@@ -32,7 +32,7 @@ export async function wizard({ root, api }) {
   const [services, addons] = await Promise.all([api.services(), api.addons()]);
   let vehicles = await api.vehicles();
   const w = {
-    step: 0, vehicle_id: vehicles[0]?.id ?? null, service_id: 'completo', addons: [],
+    step: 0, vehicle_id: vehicles[0]?.id ?? null, service_id: null, addons: [],   // sem serviço pré-selecionado: total começa em R$ 0,00
     endereco: '', bairro: '', lat: -15.794, lng: -47.882, quando: 'agora', when: '', metodo: 'pix', addingVehicle: !vehicles.length,
   };
   const veh = () => vehicles.find((v) => v.id === w.vehicle_id);
@@ -133,7 +133,8 @@ export async function wizard({ root, api }) {
   }
 
   function valid() {
-    if (w.step === 0) return !!veh();
+    if (w.step === 0) { if (!veh()) throw new Error('Escolha ou cadastre um veículo.'); return true; }
+    if (w.step === 1 && !svc()) throw new Error('Escolha o tipo de lavagem.');
     if (w.step === 3) {
       if (w.endereco.trim().length < 5) throw new Error('Informe o endereço do atendimento.');
       if (w.bairro.trim().length < 2) throw new Error('Informe o bairro.');
