@@ -159,3 +159,18 @@ body:has(.stage) #app { max-width: 78rem; }
 .washer-pin { font-size: 1.5rem; line-height: 28px; text-align: center; background: none; border: 0; filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
 .eta { margin: .2rem 0 0; font-size: .9rem; color: var(--cyan); }
 .wiz-body { padding-bottom: 1rem; }
+
+/* admin */
+.admin { display: grid; gap: .8rem; }
+.tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: .5rem; }
+.stat.big { padding: .9rem .6rem; } .stat.big b { font-size: 1.25rem; } .stat small { display: block; font-size: .68rem; color: var(--muted); margin-top: .15rem; }
+.admin-grid { display: grid; gap: .8rem; }
+.panel { margin: 0; } .panel h3 { color: var(--cyan); }
+.chart { width: 100%; height: auto; display: block; }
+.chart .bar { fill: var(--cyan); } .chart .svg-label { fill: var(--muted); font-size: 10px; } .chart .svg-val { fill: var(--text); font-size: 10px; font-weight: 700; }
+.table { width: 100%; border-collapse: collapse; font-size: .9rem; } .table th { text-align: left; color: var(--muted); font-weight: 600; font-size: .75rem; }
+.table th, .table td { padding: .4rem .3rem; border-bottom: 1px solid var(--line); } .table td:not(:first-child), .table th:not(:first-child) { text-align: right; }
+.alert-row { padding: .55rem 0; border-bottom: 1px solid var(--line); } .alert-row b { color: var(--amber); }
+.card.warn { background: rgba(251,191,36,.08); border-color: rgba(251,191,36,.45); font-size: .88rem; }
+body:has(.admin) #app { max-width: 70rem; }
+@media (min-width: 900px) { .tiles { grid-template-columns: repeat(6, 1fr); } .admin-grid { grid-template-columns: repeat(2, 1fr); } }

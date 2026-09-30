@@ -5,6 +5,7 @@ import { h, go } from './ui.js';
 import * as auth from './views/auth.js';
 import * as cliente from './views/cliente.js';
 import * as lavador from './views/lavador.js';
+import * as admin from './views/admin.js';
 import { palco } from './views/palco.js';
 
 const routes = [
@@ -17,6 +18,7 @@ const routes = [
   [/^\/cliente\/pedido\/([\w-]+)$/, cliente.order, { role: 'cliente' }],
   [/^\/lavador$/, lavador.home, { role: 'lavador' }],
   [/^\/lavador\/pedido\/([\w-]+)$/, lavador.job, { role: 'lavador' }],
+  [/^\/admin$/, admin.home, { role: 'admin' }],
 ];
 
 const dot = h('span', { class: 'live-dot', title: 'Conexão em tempo real' });
@@ -74,7 +76,7 @@ async function render() {
   userChip.replaceChildren();
   if (me) {
     userChip.append(
-      h('span', { class: 'who' }, me.nome.split(' ')[0], h('small', {}, me.role === 'lavador' ? ' · lavador' : ' · cliente')),
+      h('span', { class: 'who' }, me.nome.split(' ')[0], h('small', {}, ` · ${me.role}`)),
       h('button', { class: 'btn ghost sm', type: 'button', onclick: async () => { await api.signOut(); if ((location.hash || '#/') === '#/') render(); else go('/'); } }, 'Sair'));
   }
 

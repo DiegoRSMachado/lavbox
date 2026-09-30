@@ -179,8 +179,42 @@ export const adapter = {
     const db = load(); const u = userOf(db, need()); if (u.washer) u.washer.disponivel = v; save(db);
   },
 
+  // KPIs do admin calculados localmente (versão simplificada do admin_kpis do servidor; usada no E2E offline).
+  async adminKpis() {
+    const db = load();
+    if (userOf(db, cur())?.role !== 'admin') fail('acesso negado');
+    const O = db.orders, done = O.filter((o) => ['pago', 'avaliado'].includes(o.status));
+    const count = (keyFn) => { const m = {}; O.forEach((o) => { const k = keyFn(o); m[k] = (m[k] || 0) + 1; }); return m; };
+    const top = (m, n) => Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, n);
+    const nota = O.filter((o) => o.avaliacao);
+    const hora = Array(24).fill(0); O.forEach((o) => { hora[new Date(o.created_at).getHours()] += 1; });
+    const dias = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(Date.now() - (13 - i) * 86400000);
+      return { dia: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        qtd: O.filter((o) => new Date(o.created_at).toDateString() === d.toDateString()).length };
+    });
+    const porWasher = {};
+    done.forEach((o) => { const w = userOf(db, o.washer_id)?.nome ?? '—'; (porWasher[w] ||= []).push(o.avaliacao); });
+    return {
+      total_pedidos: O.length, pedidos_seed: O.filter((o) => o.is_seed).length,
+      em_andamento: O.filter((o) => !['avaliado', 'cancelado'].includes(o.status)).length,
+      por_status: count((o) => o.status),
+      receita: done.reduce((s, o) => s + Number(o.preco_total), 0),
+      ticket_medio: done.length ? +(done.reduce((s, o) => s + Number(o.preco_total), 0) / done.length).toFixed(2) : 0,
+      nota_media: nota.length ? +(nota.reduce((s, o) => s + o.avaliacao, 0) / nota.length).toFixed(2) : null,
+      agua_economizada_l: done.filter((o) => SEED_SERVICES.find((s) => s.id === o.service_id)?.ecologico).length * 130,
+      tempo_medio_min: null,
+      por_servico: top(count((o) => SEED_SERVICES.find((s) => s.id === o.service_id)?.nome), 9).map(([nome, qtd]) => ({ nome, qtd })),
+      por_bairro: top(count((o) => o.bairro), 8).map(([nome, qtd]) => ({ nome, qtd })),
+      por_hora: hora, por_dia: dias,
+      ranking: Object.entries(porWasher).map(([nome, n]) => { const v = n.filter(Boolean); return { nome, concluidos: n.length, nota: v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(2) : null }; }),
+      alertas: O.filter((o) => o.avaliacao && o.avaliacao <= 3).slice(0, 8)
+        .map((o) => ({ id: o.id, servico: SEED_SERVICES.find((s) => s.id === o.service_id)?.nome, bairro: o.bairro, nota: o.avaliacao, comentario: o.comentario, quando: o.updated_at })),
+    };
+  },
+
   subscribe(cb, onState) {
-    const fn = (e) => { if (!e.key || e.key === KEY) cb(); };
+    const fn =(e) => { if (!e.key || e.key === KEY) cb(); };
     bc?.addEventListener('message', cb);
     window.addEventListener('storage', fn);
     onState?.(true);

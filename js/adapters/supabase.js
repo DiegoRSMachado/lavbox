@@ -107,6 +107,7 @@ export const adapter = {
   async pay(id) { unwrap(await sb.rpc('pay_order', { p_id: id })); },
   async rate(id, nota, comentario) { unwrap(await sb.rpc('rate_order', { p_id: id, p_nota: nota, p_comentario: comentario || null })); },
   async cancel(id) { unwrap(await sb.rpc('cancel_order', { p_id: id })); },
+  async adminKpis() { return unwrap(await sb.rpc('admin_kpis')); },   // só admin (validado no servidor)
   async setAvailability(v) { unwrap(await sb.from('washers').update({ disponivel: v }).eq('id', await uid())); },
 
   // ---------- realtime ----------

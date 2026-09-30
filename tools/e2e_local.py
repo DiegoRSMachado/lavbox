@@ -90,6 +90,31 @@ with sync_playwright() as p:
     C.get_by_role("button", name="Criar conta").click()
     expect(C.get_by_role("heading", name="Olá, Bruno")).to_be_visible(); shot(C, "17_lavador_home")
 
+    # ---- admin: painel de KPIs (conta e dados criados só no teste; nada disso existe no repo) ----
+    D = ctx.new_page(); D.goto(BASE)
+    D.evaluate("""() => {
+      const k = 'lavbox-local-db'; const db = JSON.parse(localStorage.getItem(k));
+      db.users.push({ id: 'adm-1', email: 'admin@teste.local', password: 'Senha#Admin1', role: 'admin', nome: 'Admin Teste' });
+      const svc = ['basico', 'completo', 'premium', 'ecowash'], bai = ['Asa Sul', 'Asa Norte', 'Lago Sul', 'Guará'];
+      for (let i = 0; i < 40; i++) {
+        const d = new Date(Date.now() - (i % 13) * 86400000 - i * 3600000).toISOString();
+        db.orders.push({ id: 'seed-' + i, client_id: 'demo-cliente', washer_id: 'demo-lavador', vehicle_id: 'v-demo', service_id: svc[i % 4],
+          addon_ids: [], bairro: bai[i % 4], preco_total: 50 + i, status: 'avaliado', avaliacao: i % 7 === 0 ? 2 : 5,
+          comentario: i % 7 === 0 ? 'Demorou' : null, created_at: d, updated_at: d, is_seed: true });
+      }
+      localStorage.setItem(k, JSON.stringify(db)); }""")
+    D.goto(BASE + "#/entrar")
+    D.get_by_placeholder("voce@email.com").fill("admin@teste.local"); D.locator("input[type=password]").fill("Senha#Admin1")
+    D.get_by_role("button", name="Entrar", exact=True).click()
+    expect(D.get_by_role("heading", name="Painel de operação")).to_be_visible()
+    expect(D.locator("svg.chart").first).to_be_visible(); assert D.locator("svg.chart").count() >= 5, "faltam gráficos"
+    expect(D.get_by_text("Dados de demonstração")).to_be_visible(); expect(D.get_by_text("Fila de recuperação")).to_be_visible()
+    D.set_viewport_size({"width": 1400, "height": 1000}); D.wait_for_timeout(400); shot(D, "19_admin")
+    # controle de acesso no front: cliente não entra em #/admin (no servidor a RPC também nega)
+    A.goto(BASE + "#/admin"); A.wait_for_timeout(600)
+    assert "/admin" not in A.url, "cliente alcançou /admin"
+    print("Admin: painel renderizado e acesso de cliente barrado ✔")
+
     # ---- palco ----
     P = ctx.new_page(); P.set_viewport_size({"width": 1400, "height": 900}); P.goto(BASE + "#/palco"); P.wait_for_timeout(800); expect(P.frame_locator("iframe").first.get_by_role("button", name="Entrar como Cliente")).to_be_visible(); shot(P, "18_palco")
     b.close()
