@@ -56,7 +56,7 @@ Fala curta nos slides (1 min): inovação de processo, 3 perfis no mesmo app, te
 - [ ] Instalar o app no celular (Android: ⋮ → Instalar app; iPhone: Compartilhar → Adicionar à Tela de Início) e testar a **câmera** no "Ler QR".
 - [ ] Internet: usar o **hotspot do celular**; testar o WebSocket (cliente muda sem recarregar).
 - [ ] Plano B testado: `?mode=local#/palco` e vídeo gravado da demo completa.
-- [ ] Apagar pedidos de teste das contas demo **sem** apagar o seed (não rodar `purge_seed.sql` antes da apresentação).
+- [ ] **Quinta à noite, depois que os parceiros terminarem de testar:** limpar os pedidos de teste com `supabase/reset_demo.sql` (preserva contas e o seed fictício; peça ao Claude ou rode no SQL Editor). **Não** rodar `purge_seed.sql` antes da apresentação: ele apaga os 120 pedidos do painel.
 - [ ] Notebook no telão: zoom do navegador em 110–125%, modo tela cheia, notificações desligadas.
 - [ ] Conferir: nome **LAVBOX** e data **02/10/2026** em todos os slides.
 - [ ] Ensaiar com cronômetro: 4 min por pessoa.

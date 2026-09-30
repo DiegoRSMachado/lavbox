@@ -184,7 +184,7 @@ body:has(.stage) #app { max-width: 78rem; }
 .chart .bar { fill: var(--cyan); } .chart .svg-label { fill: var(--muted); font-size: 10px; } .chart .svg-val { fill: var(--text); font-size: 10px; font-weight: 700; }
 .table { width: 100%; border-collapse: collapse; font-size: .9rem; } .table th { text-align: left; color: var(--muted); font-weight: 600; font-size: .75rem; }
 .table th, .table td { padding: .4rem .3rem; border-bottom: 1px solid var(--line); } .table td:not(:first-child), .table th:not(:first-child) { text-align: right; }
-.alert-row { padding: .55rem 0; border-bottom: 1px solid var(--line); } .alert-row b { color: var(--amber); }
+.alert-row { padding: .55rem 0; border-bottom: 1px solid var(--line); } .alert-row b { color: var(--amber); } .alert-row .stars-off { color: var(--line); }
 .card.warn { background: rgba(251,191,36,.08); border-color: rgba(251,191,36,.45); font-size: .88rem; }
 body:has(.admin) #app { max-width: 70rem; }
 @media (min-width: 900px) { .tiles { grid-template-columns: repeat(6, 1fr); } .admin-grid { grid-template-columns: repeat(2, 1fr); } }

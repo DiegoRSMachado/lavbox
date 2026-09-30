@@ -1,0 +1,19 @@
+# Evita que o projeto gratuito do Supabase seja pausado por inatividade (pausa após ~1 semana sem uso).
+# Faz uma leitura pública do catálogo (mesma chave "publishable" que já está no frontend). Nenhum segredo é usado.
+name: keepalive-supabase
+on:
+  schedule:
+    - cron: '17 11 * * *'   # diariamente, 11:17 UTC
+  workflow_dispatch: {}
+permissions: {}
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping no catálogo de serviços
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H 'apikey: sb_publishable_eFot9s0A97-osO1h2UjOJg_SgNRGYKc' \
+            'https://kpgzmedfxmatmuvujdhv.supabase.co/rest/v1/services?select=id&limit=1')
+          echo "HTTP $code"
+          test "$code" = "200"

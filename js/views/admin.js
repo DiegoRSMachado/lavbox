@@ -50,7 +50,8 @@ export async function home({ root, api, live }) {
     const total = k.total_pedidos ?? 0;
     const seed = k.pedidos_seed ?? 0;
     const porStatus = k.por_status ?? {};
-    const statusItems = [...STATUS.map((x) => ({ label: x.label, value: porStatus[x.id] ?? 0 })), { label: 'Cancelado', value: porStatus.cancelado ?? 0 }];
+    const CURTO = { solicitado: 'Solicitado', confirmado: 'Confirmado', a_caminho: 'A caminho', chegou: 'Chegou', em_servico: 'Em serviço', finalizado: 'Finalizado', pago: 'Pago', avaliado: 'Avaliado' };
+    const statusItems = [...STATUS.map((x) => ({ label: CURTO[x.id] ?? x.label, value: porStatus[x.id] ?? 0 })), { label: 'Cancelado', value: porStatus.cancelado ?? 0 }];
     const horas = k.por_hora ?? Array(24).fill(0);
     const dias = k.por_dia ?? [];
 
@@ -78,7 +79,7 @@ export async function home({ root, api, live }) {
       panel('Fila de recuperação (nota ≤ 3)',
         h('p', { class: 'muted small' }, 'Avaliação baixa abre um caso para a equipe de sucesso do cliente entrar em contato.'),
         (k.alertas ?? []).length ? (k.alertas).map((a) => h('div', { class: 'alert-row' },
-          h('div', {}, h('b', {}, `${'★'.repeat(a.nota)}${'☆'.repeat(5 - a.nota)}`), ' ', h('span', { class: 'muted' }, `${a.servico} · ${a.bairro}`)),
+          h('div', {}, h('b', {}, '★'.repeat(a.nota)), h('span', { class: 'stars-off' }, '★'.repeat(5 - a.nota)), ' ', h('b', {}, `${a.nota}/5`), ' · ',h('span', { class: 'muted' }, `${a.servico} · ${a.bairro}`)),
           a.comentario ? h('div', { class: 'muted' }, `“${a.comentario}”`) : null,
           h('div', { class: 'muted small' }, fmtDateTime(a.quando)))) : h('p', { class: 'muted' }, 'Nenhum alerta. 🎉')),
       h('p', { class: 'muted small center' }, 'Todos os números são calculados no servidor (função SQL restrita ao admin). Este painel não acessa endereço, telefone nem PIN.')));
