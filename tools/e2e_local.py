@@ -51,6 +51,8 @@ with sync_playwright() as p:
     expect(A.get_by_text("a caminho", exact=False).first).to_be_visible(timeout=10000)
     B.get_by_role("button", name="Cheguei ao local").click()
     expect(A.locator(".pin")).to_be_visible(timeout=10000); expect(A.locator("canvas.qr")).to_be_visible(); shot(A, "11_cliente_pin")
+    A.evaluate("document.querySelector('.pin-card').scrollIntoView({block: 'center'})"); A.wait_for_timeout(300); shot(A, "11b_pin_qr")
+    A.evaluate("window.scrollTo(0, 0)")
     pin = A.locator(".pin").inner_text()
     oid = A.url.split("/pedido/")[1].split("?")[0]
 
