@@ -26,7 +26,7 @@ Supabase (free)
 ```
 
 Máquina de estados: `solicitado → confirmado → a_caminho → chegou → em_servico → finalizado → pago → avaliado` (+ `cancelado`).
-`em_servico` só acontece com o **PIN de 4 dígitos** do cliente, validado no servidor.
+`em_servico` só acontece com o **PIN de 6 dígitos** do cliente, validado no servidor, com **bloqueio de 5 min após 5 erros** (o contador persiste porque `start_service` retorna o resultado em vez de lançar erro).
 
 ## Modelo de ameaças (resumo)
 
@@ -41,7 +41,7 @@ Máquina de estados: `solicitado → confirmado → a_caminho → chegou → em_
 | Vazamento de segredo | Só a chave *publishable* no frontend; `service_role` nunca |
 | Preço adulterado | Preço calculado no servidor (`create_order`) |
 
-`supabase/schema.sql` contém o schema, as policies e as RPCs. `tools/e2e_local.py` executa o fluxo completo (cliente + lavador) em modo offline, incluindo teste de XSS.
+`supabase/schema.sql` é a linha de base (migrations 0001–0003); as mudanças seguintes ficam em `supabase/migrations/` (cada uma com script de desfazer). Documentação do projeto em `docs/`. `tools/e2e_local.py` executa o fluxo completo (cliente + lavador) em modo offline, incluindo teste de XSS.
 
 ## Rodar local
 

@@ -49,6 +49,11 @@ function setStatus(db, o, to, actor) {
   o.status = to; o.updated_at = new Date().toISOString();
 }
 const fail = (m) => { throw new Error(m); };
+// secrets[id] = { pin, tentativas, bloqueado_ate }  (tolera formato antigo: string)
+const secOf = (db, id) => {
+  const s = db.secrets[id];
+  return typeof s === 'string' ? (db.secrets[id] = { pin: s, tentativas: 0, bloqueado_ate: null }) : s;
+};
 
 export const adapter = {
   name: 'local',
@@ -106,7 +111,7 @@ export const adapter = {
   async events(id) { return load().events.filter((e) => e.order_id === id); },
   async pin(id) {
     const db = load(); const o = db.orders.find((x) => x.id === id);
-    return o && o.client_id === cur() ? db.secrets[id] : null;
+    return o && o.client_id === cur() ? secOf(db, id).pin : null;
   },
 
   async createOrder(p) {
@@ -116,7 +121,7 @@ export const adapter = {
     const svc = SEED_SERVICES.find((s) => s.id === p.service_id) ?? fail('serviço inválido');
     if ((p.endereco || '').length < 5 || (p.bairro || '').length < 2) fail('endereço inválido');
     const id = uuid(); const now = new Date().toISOString();
-    const pin = String(crypto.getRandomValues(new Uint16Array(1))[0] % 10000).padStart(4, '0');
+    const pin = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
     db.orders.push({
       id, client_id: me, washer_id: null, vehicle_id: veh.id, service_id: svc.id, addon_ids: p.addons ?? [],
       bairro: p.bairro.slice(0, 60), lat: p.lat && +p.lat.toFixed(3), lng: p.lng && +p.lng.toFixed(3),
@@ -125,7 +130,7 @@ export const adapter = {
     });
     db.events.push({ id: db.events.length + 1, order_id: id, de: null, para: 'solicitado', actor: me, at: now });
     db.priv[id] = { order_id: id, endereco: p.endereco.slice(0, 200), telefone: u.telefone, lat: p.lat, lng: p.lng };
-    db.secrets[id] = pin; save(db);
+    db.secrets[id] = { pin, tentativas: 0, bloqueado_ate: null }; save(db);
     return { id, pin };
   },
   async accept(id) {
@@ -142,7 +147,17 @@ export const adapter = {
   async startService(id, pin) {
     const db = load(); const me = need(); const o = db.orders.find((x) => x.id === id && x.washer_id === me) ?? fail('pedido não encontrado');
     if (o.status !== 'chegou') fail('pedido não está no estado "chegou"');
-    if (db.secrets[id] !== pin) fail('PIN inválido');
+    if (!/^[0-9]{6}$/.test(pin || '')) fail('Digite os 6 dígitos.');
+    const s = secOf(db, id);
+    if (s.bloqueado_ate && new Date(s.bloqueado_ate) > new Date()) {
+      fail(`Muitas tentativas. Tente novamente às ${new Date(s.bloqueado_ate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`);
+    }
+    if (s.pin !== pin) {
+      s.tentativas += 1;
+      if (s.tentativas >= 5) { s.tentativas = 0; s.bloqueado_ate = new Date(Date.now() + 5 * 60000).toISOString(); save(db); fail('Muitas tentativas. Tente novamente em 5 minutos.'); }
+      save(db); fail(`PIN incorreto. Restam ${5 - s.tentativas} tentativa(s).`);
+    }
+    s.tentativas = 0; s.bloqueado_ate = null;
     setStatus(db, o, 'em_servico', me); save(db);
   },
   async pay(id) {

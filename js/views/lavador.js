@@ -76,16 +76,16 @@ export async function job({ root, params, api, live }) {
 
   const paint = ({ o, events, priv }) => {
     if (!o) return mount(root, h('div', { class: 'card' }, h('p', {}, 'Pedido não encontrado ou indisponível.'), h('a', { class: 'btn ghost', href: '#/lavador' }, 'Voltar')));
-    const pinInput = h('input', { class: 'pin-input', inputmode: 'numeric', maxlength: 4, autocomplete: 'one-time-code', placeholder: '••••', 'aria-label': 'Código de 4 dígitos do cliente',
-      oninput: (e) => { pin = e.target.value.replace(/\D/g, '').slice(0, 4); e.target.value = pin; } });
+    const pinInput = h('input', { class: 'pin-input', inputmode: 'numeric', maxlength: 6, autocomplete: 'one-time-code', placeholder: '••••••', 'aria-label': 'Código de 6 dígitos do cliente',
+      oninput: (e) => { pin = e.target.value.replace(/\D/g, '').slice(0, 6); e.target.value = pin; } });
     pinInput.value = pin;
 
     const step = {
       confirmado: () => actionButton('🚗 Sair para o atendimento', () => api.advance(id).then(() => refresh())),
       a_caminho: () => actionButton('📍 Cheguei ao local', () => api.advance(id).then(() => refresh())),
       chegou: () => h('div', { class: 'card' }, h('h3', {}, 'Iniciar com o código do cliente'),
-        h('p', { class: 'muted small' }, 'Peça o código de 4 dígitos ao cliente. O serviço só inicia com ele.'), pinInput,
-        actionButton('▶ Iniciar lavagem', async () => { if (pin.length !== 4) throw new Error('Digite os 4 dígitos.'); await api.startService(id, pin); pin = ''; toast('Serviço iniciado!', 'ok'); await refresh(); })),
+        h('p', { class: 'muted small' }, 'Peça o código de 6 dígitos ao cliente. O serviço só inicia com ele (5 erros bloqueiam por 5 min).'), pinInput,
+        actionButton('▶ Iniciar lavagem', async () => { if (pin.length !== 6) throw new Error('Digite os 6 dígitos.'); await api.startService(id, pin); pin = ''; toast('Serviço iniciado!', 'ok'); await refresh(); })),
       em_servico: () => actionButton('✅ Finalizar lavagem', () => api.advance(id).then(() => refresh())),
     }[o.status];
     const stepEl = step ? step() : null;

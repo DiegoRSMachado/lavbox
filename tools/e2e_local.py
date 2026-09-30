@@ -49,10 +49,11 @@ with sync_playwright() as p:
     expect(A.locator(".pin")).to_be_visible(timeout=10000); shot(A, "11_cliente_pin")
     pin = A.locator(".pin").inner_text()
     # PIN errado deve falhar
-    B.get_by_label("Código de 4 dígitos do cliente").fill("0000" if pin != "0000" else "1111")
+    B.get_by_label("Código de 6 dígitos do cliente").fill("000000" if pin != "000000" else "111111")
     B.get_by_role("button", name="Iniciar lavagem").click()
-    expect(B.get_by_text("PIN inválido")).to_be_visible(); shot(B, "12_lavador_pin_errado")
-    B.get_by_label("Código de 4 dígitos do cliente").fill(pin)
+    expect(B.get_by_text("PIN incorreto. Restam 4 tentativa(s).")).to_be_visible(); shot(B, "12_lavador_pin_errado")
+    assert len(pin) == 6, "PIN deve ter 6 dígitos"
+    B.get_by_label("Código de 6 dígitos do cliente").fill(pin)
     B.get_by_role("button", name="Iniciar lavagem").click()
     expect(A.get_by_text("Lavagem em andamento")).to_be_visible(timeout=10000)
     B.get_by_role("button", name="Finalizar lavagem").click()

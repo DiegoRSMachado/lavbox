@@ -19,6 +19,16 @@ const ORDER_SELECT =
   ' washer:profiles!orders_washer_id_fkey(nome),' +
   ' client:profiles!orders_client_id_fkey(nome)';
 
+// Mensagem amigável para o retorno de start_service (o servidor não lança erro, p/ o contador persistir).
+function pinMessage(r = {}) {
+  if (r.motivo === 'bloqueado') {
+    const ate = r.bloqueado_ate ? new Date(r.bloqueado_ate).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'alguns minutos';
+    return `Muitas tentativas. Tente novamente às ${ate}.`;
+  }
+  if (r.motivo === 'formato') return 'Digite os 6 dígitos.';
+  return `PIN incorreto. Restam ${r.restantes} tentativa(s).`;
+}
+
 let uidCache = null;
 async function uid() {
   if (uidCache) return uidCache;
@@ -90,7 +100,10 @@ export const adapter = {
   },
   async accept(id) { unwrap(await sb.rpc('accept_order', { p_id: id })); },
   async advance(id) { unwrap(await sb.rpc('advance_order', { p_id: id })); },
-  async startService(id, pin) { unwrap(await sb.rpc('start_service', { p_id: id, p_pin: pin })); },
+  async startService(id, pin) {
+    const r = unwrap(await sb.rpc('start_service', { p_id: id, p_pin: pin }));
+    if (!r?.ok) throw new Error(pinMessage(r));
+  },
   async pay(id) { unwrap(await sb.rpc('pay_order', { p_id: id })); },
   async rate(id, nota, comentario) { unwrap(await sb.rpc('rate_order', { p_id: id, p_nota: nota, p_comentario: comentario || null })); },
   async cancel(id) { unwrap(await sb.rpc('cancel_order', { p_id: id })); },
