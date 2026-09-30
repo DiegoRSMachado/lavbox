@@ -1,5 +1,6 @@
 import { mount, h, go, money, actionButton, toast, stars, badge, fmtDateTime } from '../ui.js';
 import { addonNames, AGUA_CONVENCIONAL, VEHICLE_TYPES, calcPrice, vehicleIcon, statusLabel } from '../config.js';
+import { initMap, geocode, startTracking } from './map.js';
 import { orderCard, progressList, kv, isActive, makeRefresher } from './common.js';
 
 // ============ HOME ============
@@ -85,17 +86,28 @@ export async function wizard({ root, api }) {
   function stepLocal() {
     const end = h('input', { value: w.endereco, maxlength: 200, placeholder: 'Rua/quadra, número, complemento', oninput: (e) => { w.endereco = e.target.value; } });
     const bai = h('input', { value: w.bairro, maxlength: 60, placeholder: 'Ex.: Asa Norte', oninput: (e) => { w.bairro = e.target.value; } });
-    const geo = h('p', { class: 'muted small' }, w.geo ? '📍 Localização atual capturada.' : '');
     const when = h('input', { type: 'datetime-local', value: w.when, oninput: (e) => { w.when = e.target.value; } });
+    const info = h('p', { class: 'muted small' }, w.geo ? '📍 Local marcado no mapa.' : 'Toque no mapa ou arraste o pino para marcar o local exato.');
+    const box = h('div', { class: 'map' });
+    let mm = null;
+    const move = (p) => { w.lat = p.lat; w.lng = p.lng; w.geo = true; info.textContent = '📍 Local marcado no mapa.'; };
+    setTimeout(() => { mm = initMap(box, { center: { lat: w.lat, lng: w.lng }, pin: { lat: w.lat, lng: w.lng }, draggable: true, onMove: move }); }, 0);
+    const buscar = actionButton('🔎 Buscar pelo endereço', async () => {
+      if (w.endereco.trim().length < 5) throw new Error('Digite o endereço antes de buscar.');
+      const r = await geocode([w.endereco, w.bairro, 'Brasília, DF'].filter(Boolean).join(', '));
+      if (!r) throw new Error('Endereço não encontrado. Toque no mapa para marcar o local.');
+      move(r); mm?.setPin(r); toast('Local encontrado. Ajuste o pino se precisar.', 'ok');
+    }, 'btn ghost sm');
+    const gps = h('button', { class: 'btn ghost sm', type: 'button', onclick: () => {
+      if (!navigator.geolocation) return toast('Geolocalização indisponível neste aparelho.', 'err');
+      navigator.geolocation.getCurrentPosition(
+        (p) => { const q = { lat: p.coords.latitude, lng: p.coords.longitude }; move(q); mm?.setPin(q); },
+        () => toast('Não foi possível obter a localização. Toque no mapa.', 'err'), { timeout: 8000 });
+    } }, '📍 Usar minha localização');
     return h('div', { class: 'card form inner' },
       h('label', { class: 'field' }, h('span', {}, 'Endereço do atendimento'), end),
       h('label', { class: 'field' }, h('span', {}, 'Bairro / região'), bai),
-      h('button', { class: 'btn ghost sm', type: 'button', onclick: () => {
-        if (!navigator.geolocation) return toast('Geolocalização indisponível neste aparelho.', 'err');
-        navigator.geolocation.getCurrentPosition(
-          (p) => { w.lat = p.coords.latitude; w.lng = p.coords.longitude; w.geo = true; geo.textContent = '📍 Localização atual capturada.'; },
-          () => toast('Não foi possível obter a localização. Digite o endereço.', 'err'), { timeout: 8000 });
-      } }, '📍 Usar minha localização'), geo,
+      h('div', { class: 'row' }, buscar, gps), box, info,
       h('div', { class: 'seg' },
         h('button', { type: 'button', class: w.quando === 'agora' ? 'on' : '', onclick: () => { w.quando = 'agora'; paint(); } }, 'Lavar agora'),
         h('button', { type: 'button', class: w.quando === 'agendar' ? 'on' : '', onclick: () => { w.quando = 'agendar'; paint(); } }, 'Agendar')),
@@ -153,7 +165,7 @@ export async function wizard({ root, api }) {
 }
 
 // ============ ACOMPANHAMENTO (Live Progress) ============
-export async function order({ root, params, api, live }) {
+export async function order({ root, params, api, live, onLeave }) {
   const id = params[0];
   let rating = 0; let comment = ''; let metodo = 'pix';
 
@@ -166,7 +178,10 @@ export async function order({ root, params, api, live }) {
   };
 
   let lastData = null;
+  let stopTrack = null;
+  onLeave(() => stopTrack?.());
   const paint = (data) => {
+    stopTrack?.(); stopTrack = null;
     lastData = data;
     const { o, events, priv, pin } = data;
     if (!o) return mount(root, h('div', { class: 'card' }, h('p', {}, 'Pedido não encontrado.'), h('a', { class: 'btn ghost', href: '#/cliente' }, 'Voltar')));
@@ -181,11 +196,20 @@ export async function order({ root, params, api, live }) {
     comentario.value = comment;
     const starsEl = stars(rating, (n) => { rating = n; paint(lastData); });
 
+    const tracking = priv?.lat != null && ['solicitado', 'confirmado', 'a_caminho', 'chegou', 'em_servico'].includes(o.status);
+    const mapBox = h('div', { class: 'map' }); const etaEl = h('p', { class: 'eta' });
+    const trackCard = tracking ? h('div', { class: 'card' }, h('div', { class: 'between' }, h('strong', {}, 'Acompanhe no mapa'), badge('simulado', 'amber')), mapBox, etaEl) : null;
+    if (tracking) {
+      const tStart = events.find((e) => e.para === 'a_caminho')?.at;
+      setTimeout(() => { stopTrack = startTracking(mapBox, etaEl, { dest: { lat: priv.lat, lng: priv.lng }, orderId: o.id, status: o.status, tStart: tStart ? new Date(tStart).getTime() : Date.now() }); }, 0);
+    }
+
     mount(root, 
       h('a', { class: 'link back', href: '#/cliente' }, '← Meus pedidos'),
       h('div', { class: 'card live-card' },
         h('div', { class: 'between' }, h('h2', {}, 'Live Progress'), badge('● ao vivo', 'green')),
         h('p', { class: 'headline' }, headline), progressList(o, events)),
+      trackCard,
       o.washer ? h('div', { class: 'card washer-card' }, h('span', { class: 'avatar' }, o.washer.nome?.[0] ?? '?'),
         h('div', {}, h('strong', {}, o.washer.nome), h('div', { class: 'muted' }, 'Seu profissional LAVBOX'))) : null,
       pin ? h('div', { class: 'card pin-card' }, h('div', { class: 'muted' }, 'Código de início do serviço'), h('div', { class: 'pin' }, pin),

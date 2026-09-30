@@ -79,7 +79,7 @@ async function render() {
   }
 
   view.replaceChildren();
-  const ctx = { root: view, me, params: m.slice(1), live: makeLive(), api };
+  const ctx = { root: view, me, params: m.slice(1), live: makeLive(), api, onLeave: (fn) => teardown.push(fn) };
   try { await fn(ctx); } catch (e) {
     console.error(e);
     if (mine !== seq) return;

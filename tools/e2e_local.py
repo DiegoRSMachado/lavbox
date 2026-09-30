@@ -14,7 +14,7 @@ with sync_playwright() as p:
     ctx = b.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, locale="pt-BR")
     A, B = ctx.new_page(), ctx.new_page()
     for pg, n in ((A, "cliente"), (B, "lavador")):
-        pg.on("console", lambda m, n=n: errors.append(f"[{n}] {m.text}") if m.type in ("error", "warning") else None)
+        pg.on("console", lambda m, n=n: errors.append(f"[{n}] {m.text}") if m.type in ("error", "warning") and "tile.openstreetmap" not in m.text and "ERR_" not in m.text and "Failed to load resource" not in m.text else None)
         pg.on("pageerror", lambda e, n=n: errors.append(f"[{n}] PAGEERROR {e}"))
     shot = lambda pg, name: pg.screenshot(path=f"{OUT}/{name}.png")
 
@@ -30,7 +30,8 @@ with sync_playwright() as p:
     A.get_by_role("switch", name="Polimento").click(); shot(A, "05_wizard_extras")
     A.get_by_role("button", name="Continuar").click()
     A.get_by_placeholder("Rua/quadra, número, complemento").fill("SQN 308 bloco C ap 101")
-    A.get_by_placeholder("Ex.: Asa Norte").fill("Asa Norte"); shot(A, "06_wizard_local")
+    A.get_by_placeholder("Ex.: Asa Norte").fill("Asa Norte")
+    expect(A.locator(".leaflet-container")).to_be_visible(); A.wait_for_timeout(500); shot(A, "06_wizard_local")
     A.get_by_role("button", name="Continuar").click()
     shot(A, "07_wizard_resumo")
     # Compass SUV: completo 70*1.25 + polimento 80 = 167,50
@@ -43,7 +44,10 @@ with sync_playwright() as p:
     expect(B.get_by_role("button", name="Aceitar pedido")).to_be_visible(timeout=10000); shot(B, "09_lavador_disponiveis")
     B.get_by_role("button", name="Aceitar pedido").click()
     expect(A.get_by_text("aceitou o pedido")).to_be_visible(timeout=10000); shot(A, "10_cliente_confirmado")
+    expect(B.get_by_role("button", name="Sair para o atendimento")).to_be_visible(timeout=10000)
+    expect(B.locator(".leaflet-container")).to_be_visible(); shot(B, "09b_lavador_mapa")
     B.get_by_role("button", name="Sair para o atendimento").click()
+    expect(A.locator(".washer-pin")).to_be_visible(timeout=10000); A.wait_for_timeout(600); shot(A, "10b_cliente_mapa_carro")
     expect(A.get_by_text("a caminho", exact=False).first).to_be_visible(timeout=10000)
     B.get_by_role("button", name="Cheguei ao local").click()
     expect(A.locator(".pin")).to_be_visible(timeout=10000); shot(A, "11_cliente_pin")

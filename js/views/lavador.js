@@ -1,5 +1,6 @@
 import { mount, h, go, money, actionButton, toast, badge, stars } from '../ui.js';
 import { addonNames, vehicleIcon, statusLabel } from '../config.js';
+import { startTracking } from './map.js';
 import { orderCard, kv, isActive, makeRefresher, progressList } from './common.js';
 
 // ============ PAINEL ============
@@ -63,9 +64,11 @@ export async function home({ root, me, api, live }) {
 }
 
 // ============ SERVIÇO EM ANDAMENTO ============
-export async function job({ root, params, api, live }) {
+export async function job({ root, params, api, live, onLeave }) {
   const id = params[0];
   let pin = '';
+  let stopTrack = null;
+  onLeave(() => stopTrack?.());
 
   const load = async () => {
     const o = await api.order(id);
@@ -76,6 +79,7 @@ export async function job({ root, params, api, live }) {
 
   const paint = ({ o, events, priv }) => {
     if (!o) return mount(root, h('div', { class: 'card' }, h('p', {}, 'Pedido não encontrado ou indisponível.'), h('a', { class: 'btn ghost', href: '#/lavador' }, 'Voltar')));
+    stopTrack?.(); stopTrack = null;
     const pinInput = h('input', { class: 'pin-input', inputmode: 'numeric', maxlength: 6, autocomplete: 'one-time-code', placeholder: '••••••', 'aria-label': 'Código de 6 dígitos do cliente',
       oninput: (e) => { pin = e.target.value.replace(/\D/g, '').slice(0, 6); e.target.value = pin; } });
     pinInput.value = pin;
@@ -89,6 +93,13 @@ export async function job({ root, params, api, live }) {
       em_servico: () => actionButton('✅ Finalizar lavagem', () => api.advance(id).then(() => refresh())),
     }[o.status];
     const stepEl = step ? step() : null;
+    const showMap = priv?.lat != null && ['confirmado', 'a_caminho', 'chegou', 'em_servico'].includes(o.status);
+    const mapBox = h('div', { class: 'map' }); const etaEl = h('p', { class: 'eta' });
+    const mapCard = showMap ? h('div', { class: 'card' }, h('div', { class: 'between' }, h('strong', {}, 'Rota até o cliente'), badge('simulado', 'amber')), mapBox, etaEl) : null;
+    if (showMap) {
+      const tStart = events.find((e) => e.para === 'a_caminho')?.at;
+      setTimeout(() => { stopTrack = startTracking(mapBox, etaEl, { dest: { lat: priv.lat, lng: priv.lng }, orderId: o.id, status: o.status, tStart: tStart ? new Date(tStart).getTime() : Date.now() }); }, 0);
+    }
     const wait = {
       solicitado: 'Pedido ainda não aceito.', finalizado: 'Aguardando o cliente confirmar o pagamento…',
       pago: 'Pagamento recebido. Aguardando avaliação do cliente…',
@@ -98,14 +109,15 @@ export async function job({ root, params, api, live }) {
       h('a', { class: 'link back', href: '#/lavador' }, '← Painel'),
       h('div', { class: 'card live-card' }, h('div', { class: 'between' }, h('h2', {}, statusLabel(o.status)), badge(money(o.preco_total), 'cyan')), progressList(o, events)),
       stepEl,
+      mapCard,
       wait ? h('p', { class: 'muted empty' }, wait) : null,
       o.status === 'avaliado' ? h('div', { class: 'card' }, h('div', { class: 'between' }, h('strong', {}, 'Avaliação do cliente'), stars(o.avaliacao)), o.comentario ? h('p', { class: 'muted' }, `“${o.comentario}”`) : null) : null,
       h('div', { class: 'card' }, h('h3', {}, 'Dados do atendimento'),
         kv('Cliente', o.client?.nome ?? '—'), kv('Veículo', `${vehicleIcon(o.vehicle?.tipo)} ${o.vehicle?.modelo ?? ''}${o.vehicle?.cor ? ' · ' + o.vehicle.cor : ''}`),
         kv('Serviço', o.service?.nome), kv('Extras', o.addon_ids?.length ? addonNames(o.addon_ids) : '—'), kv('Bairro', o.bairro),
         priv ? kv('Endereço', priv.endereco) : null, priv?.telefone ? kv('Telefone', priv.telefone) : null,
-        priv?.lat ? h('a', { class: 'btn ghost sm', target: '_blank', rel: 'noopener noreferrer',
-          href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(priv.lat + ',' + priv.lng)}` }, '🗺 Abrir no mapa') : null));
+        priv?.lat != null ? h('a', { class: 'btn ghost sm', target: '_blank', rel: 'noopener noreferrer',
+          href: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(priv.lat + ',' + priv.lng)}` }, '🗺 Abrir rota no Google Maps') : null));
   };
 
   const refresh = makeRefresher(load, paint);

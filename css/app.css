@@ -152,3 +152,10 @@ body:has(.stage) #app { max-width: 78rem; }
 .stage-mid { align-self: center; text-align: center; color: var(--cyan); font-size: 2rem; } .stage-mid small { display: block; font-size: .7rem; color: var(--muted); }
 @media (max-width: 800px) { .stage { flex-direction: column; align-items: center; } .stage-mid { display: none; } .phone { height: 40rem; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* mapa (Leaflet): isolation contém os z-index internos do Leaflet (senão cobrem topo e toasts) */
+.map { height: 14rem; border-radius: 12px; overflow: hidden; isolation: isolate; margin: .5rem 0; background: var(--panel2); display: grid; place-items: center; color: var(--muted); font-size: .85rem; }
+.map.leaflet-container { display: block; }
+.washer-pin { font-size: 1.5rem; line-height: 28px; text-align: center; background: none; border: 0; filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
+.eta { margin: .2rem 0 0; font-size: .9rem; color: var(--cyan); }
+.wiz-body { padding-bottom: 1rem; }

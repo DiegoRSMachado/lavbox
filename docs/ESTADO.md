@@ -1,6 +1,6 @@
 # LAVBOX — ESTADO DO PROJETO (leia isto primeiro)
 
-**Atualizado:** 2026-09-30 (noite) · **Fase:** Etapa 3 em andamento · **Pacote A:** migration 0004 aplicada e testada, código pronto, **aguardando commit/push liberado pelo Diego** · **Próximo:** Pacote B (seed + dashboard admin)
+**Atualizado:** 2026-09-30 (noite) · **Fase:** Etapa 3 em andamento · **Pacote A e mapa publicados** · site em teste com parceiros · **Próximo:** Pacote B (seed fictício + dashboard admin; precisa do e-mail da conta admin)
 
 ## Quem e o quê
 Projeto acadêmico do SENAC-DF (Innovaday). Equipe de 4: Diego Rodrigo dos Santos Machado, Rodrigo Andrade da Ponte, Izabel Cristina Alves de Oliveira, Magno Guimaraes da Silva. A explicação ao professor será feita por **3 pessoas** (quem apresenta ainda a definir). Diego trabalha à noite em casa e de dia em um PC do trabalho: **tudo precisa estar no repo e na memória, nunca só numa sessão**.
@@ -33,6 +33,7 @@ Repo `github.com/DiegoRSMachado/lavbox` (público, 3 commits, último `55306d1`)
 ## Progresso da Etapa 3
 - **Pacote A (feito localmente, não commitado até a liberação):** `supabase/migrations/0004_admin_pin6.sql` (+ `.down.sql`) **já aplicada no banco**: papel `admin` (nunca pelo cadastro público), `is_admin()`, PIN de 6 dígitos, `tentativas`/`bloqueado_ate`, `start_service` retorna `jsonb` (5 erros → bloqueio de 5 min; contador persiste). Código: adapters supabase/local, tela do lavador (6 dígitos), E2E, README.
 - **Testes do Pacote A (todos passaram):** matriz SQL com rollback (15 casos: auto-cadastro admin bloqueado, PIN 6 dígitos, bloqueio persiste e expira, admin sem acesso a `order_secrets`/`order_private`, regressão do fluxo completo com 8 eventos) · E2E local (fluxo, XSS inerte, zero erro de console) · advisors (só riscos aceitos + "leaked password protection" desligada).
+- **Mapa e acompanhamento (feito, frontend; sem mudança no banco):** Leaflet + OpenStreetMap vendorizado; passo 4 do pedido com pino arrastável, busca de endereço (Nominatim, gratuito, só sob clique) e GPS; cliente e lavador veem o lavador **simulado** a caminho com km e ETA (posição derivada de `order.id` + hora do evento `a_caminho`: os dois veem o mesmo ponto); `js/lib/geo.js` (Haversine, testado em `tools/test_geo.mjs`). Causa do "local errado" relatado: coordenada padrão de Brasília quando o cliente não marcava o local.
 - **Pendente do Diego:** ativar Pages (Settings → Páginas → `main` / raiz) e desligar "Confirm email" (Supabase → Authentication → Providers → Email); cadastrar a conta que será admin e informar só o e-mail.
 - **Limitação:** o container do Claude não alcança `supabase.co`; UI contra o Supabase real só é testada no PC/celular do Diego. Testes de banco são por SQL (MCP).
 
