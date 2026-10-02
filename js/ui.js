@@ -44,6 +44,13 @@ export function toast(msg, kind = 'info') {
 
 export const go = (path) => { location.hash = '#' + path; };
 
+// Erro de rede cru ("Failed to fetch") vira uma frase que a pessoa entende.
+export function amigavel(e) {
+  const m = String(e?.message || e || '');
+  if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
+  return m || 'Erro inesperado. Tente de novo.';
+}
+
 // Botão com estado "ocupado" e tratamento de erro padronizado.
 export function actionButton(label, fn, cls = 'btn primary') {
   const b = h('button', { class: cls, type: 'button' }, label);
@@ -51,7 +58,7 @@ export function actionButton(label, fn, cls = 'btn primary') {
     if (b.disabled) return;
     b.disabled = true;
     b.classList.add('busy');
-    try { await fn(); } catch (e) { toast(e.message || 'Erro inesperado', 'err'); }
+    try { await fn(); } catch (e) { toast(amigavel(e), 'err'); }
     finally { b.disabled = false; b.classList.remove('busy'); }
   });
   return b;

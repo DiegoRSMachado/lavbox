@@ -19,6 +19,7 @@ export async function home({ root, me, api, live }) {
     const toggle = h('button', { type: 'button', role: 'switch', 'aria-checked': String(!!washer?.disponivel),
       class: 'card toggle' + (washer?.disponivel ? ' on' : ''),
       onclick: async () => {
+        if (!washer) return toast('Cadastro de lavador incompleto. Saia e entre de novo.', 'err');
         try { await api.setAvailability(!washer.disponivel); washer = { ...washer, disponivel: !washer.disponivel }; paint({ available, jobs }); }
         catch (e) { toast(e.message, 'err'); }
       } },

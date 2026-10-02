@@ -8,8 +8,25 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { storageKey: `lavbox-auth-${slot}`, persistSession: true, autoRefreshToken: true },
 });
 
+// Traduz as mensagens do Supabase/rede para algo que a pessoa entenda (e saiba o que fazer).
+export function pt(msg = '') {
+  const m = String(msg);
+  if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
+  if (/already registered|already been registered/i.test(m)) return 'Este e-mail já tem conta. Use "Entrar".';
+  if (/Password should be at least/i.test(m)) return 'A senha precisa de pelo menos 8 caracteres.';
+  if (/invalid format|validate email|invalid email/i.test(m)) return 'E-mail inválido.';
+  if (/rate limit|security purposes|too many/i.test(m)) return 'Muitas tentativas em pouco tempo. Aguarde 1 minuto e tente de novo.';
+  if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
+  if (/JWT expired|invalid JWT|refresh token/i.test(m)) return 'Sua sessão expirou. Toque em "Sair" e entre de novo.';
+  if (/Email not confirmed/i.test(m)) return 'E-mail ainda não confirmado.';
+  if (/row-level security|permission denied/i.test(m)) return 'Ação não permitida para este perfil.';
+  if (/pedido indispon/i.test(m)) return 'Este pedido não está mais disponível (outro lavador aceitou ou o cliente cancelou).';
+  if (/transi..o inv.lida/i.test(m)) return 'Esta etapa já foi registrada. A tela vai se atualizar.';
+  return m || 'Erro inesperado. Tente de novo.';
+}
+
 const unwrap = ({ data, error }) => {
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(pt(error.message));
   return data;
 };
 
@@ -48,23 +65,39 @@ export const adapter = {
     const profile = unwrap(await sb.from('profiles').select('*').eq('id', id).maybeSingle());
     if (!profile) return null;
     let washer = null;
-    if (profile.role === 'lavador') washer = unwrap(await sb.from('washers').select('*').eq('id', id).maybeSingle());
+    if (profile.role === 'lavador') {
+      washer = unwrap(await sb.from('washers').select('*').eq('id', id).maybeSingle());
+      // Autocorreção: lavador sem cadastro de prestador (cadastro interrompido) ganha um registro padrão.
+      if (!washer) washer = unwrap(await sb.from('washers').insert({ id, bairro: 'Não informado' }).select().single());
+    }
     return { ...profile, washer };
   },
   async signUp({ email, password, role, nome, telefone, washer }) {
-    const { data, error } = await sb.auth.signUp({ email, password });
-    if (error) throw new Error(error.message);
+    let { data, error } = await sb.auth.signUp({ email, password });
+    if (error && /already registered|already been registered/i.test(error.message)) {
+      // Cadastro interrompido antes (conta criada, perfil não): entra com a mesma senha e completa o perfil.
+      const r = await sb.auth.signInWithPassword({ email, password });
+      if (r.error) throw new Error('Este e-mail já tem conta. Use "Entrar".');
+      data = r.data; error = null;
+    }
+    if (error) throw new Error(pt(error.message));
     if (!data.session) throw new Error('Confirme seu e-mail para ativar a conta (confirmação ligada no projeto).');
-    uidCache = data.user.id;
-    unwrap(await sb.from('profiles').insert({ id: data.user.id, role, nome, telefone: telefone || null }));
-    if (role === 'lavador') unwrap(await sb.from('washers').insert({ id: data.user.id, ...washer }));
+    const id = data.user.id; uidCache = id;
+    const existente = unwrap(await sb.from('profiles').select('role').eq('id', id).maybeSingle());
+    if (!existente) unwrap(await sb.from('profiles').insert({ id, role, nome, telefone: telefone || null }));
+    const papel = existente?.role ?? role;
+    if (papel === 'lavador') {
+      const temWasher = unwrap(await sb.from('washers').select('id').eq('id', id).maybeSingle());
+      if (!temWasher) unwrap(await sb.from('washers').insert({ id, ...washer }));
+    }
+    return papel;
   },
   async signIn(email, password) {
     uidCache = null;
     const { error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message);
+    if (error) throw new Error(pt(error.message));
   },
-  async signOut() { uidCache = null; await sb.auth.signOut(); },
+  async signOut() { uidCache = null; try { await sb.auth.signOut(); } catch { /* sem rede: a sessão local é limpa mesmo assim */ } },
 
   // ---------- catálogo ----------
   async services() { return unwrap(await sb.from('services').select('*').order('preco')); },

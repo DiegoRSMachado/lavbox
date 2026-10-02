@@ -18,7 +18,9 @@ export async function rota({ root, api }) {
   const fake = () => DEMO.map(([km, ang, bairro], i) => ({ ...offsetPoint(start, km, ang), label: `Cliente fictício ${i + 1} · ${bairro}` }));
 
   async function paint() {
-    const stops = demo ? fake() : await reais();
+    let stops;
+    try { stops = demo ? fake() : await reais(); }
+    catch (e) { toast(e.message || 'Não foi possível carregar seus pedidos.', 'err'); stops = []; }
     const mapBox = h('div', { class: 'map map-tall' });
     const cmp = stops.length >= 2 ? compareRoutes(start, stops) : null;
 

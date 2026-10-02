@@ -69,9 +69,21 @@ async function render() {
   if (!hit) return go('/');
   const [m, fn, opts] = hit;
 
-  let me = null;
-  try { me = await api.me(); } catch (e) { console.error(e); }
+  let me = null, meErr = null;
+  try { me = await api.me(); } catch (e) { meErr = e; console.error(e); }
   if (mine !== seq) return;
+
+  // Sem conexão ao abrir uma tela logada: avisa em vez de "jogar" a pessoa para o início.
+  if (meErr && !opts.public) {
+    userChip.replaceChildren();
+    view.replaceChildren(h('div', { class: 'card err-card' },
+      h('h2', {}, 'Sem conexão com o servidor'),
+      h('p', { class: 'muted' }, 'Verifique a internet (ou o hotspot) e tente de novo.'),
+      h('div', { class: 'stack' },
+        h('button', { class: 'btn primary', type: 'button', onclick: render }, 'Tentar novamente'),
+        h('a', { class: 'btn ghost', href: './?mode=local#/' }, 'Usar o modo offline (demonstração)'))));
+    return;
+  }
 
   if (!opts.public && (!me || (opts.role && me.role !== opts.role))) return go(me ? `/${me.role}` : '/');
 

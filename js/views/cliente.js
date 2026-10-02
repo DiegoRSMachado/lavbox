@@ -49,7 +49,9 @@ export async function wizard({ root, api }) {
       h('button', { type: 'button', class: 'chip' + (vt === t.id ? ' on' : ''), onclick: () => { vt = t.id; paintTipo(); } }, `${t.icon} ${t.label}`)));
     paintTipo();
     // Salva o veículo do formulário. Também é chamado pelo "Continuar", para quem preenche e não toca em "Salvar veículo".
-    const salvar = async () => {
+    const salvar = async ({ doContinuar = false } = {}) => {
+      // Abriu "Adicionar veículo" mas não preencheu e já tem um veículo escolhido: só fecha o formulário e segue.
+      if (doContinuar && !modelo.value.trim() && veh()) { w.addingVehicle = false; w.salvarVeiculo = null; return; }
       if (modelo.value.trim().length < 2) throw new Error('Informe o modelo do veículo.');
       const v = await api.addVehicle({ tipo: vt, modelo: modelo.value.trim(), cor: cor.value.trim() });
       vehicles = await api.vehicles(); w.vehicle_id = v.id; w.addingVehicle = false; w.salvarVeiculo = null;
@@ -164,7 +166,7 @@ export async function wizard({ root, api }) {
         toast('Pedido enviado aos lavadores!', 'ok');
         go(`/cliente/pedido/${r.id}`);
       }) : actionButton(`Continuar · ${money(total())}`, async () => {
-        if (w.step === 0 && w.addingVehicle && w.salvarVeiculo) await w.salvarVeiculo();   // salva o veículo preenchido antes de seguir
+        if (w.step === 0 && w.addingVehicle && w.salvarVeiculo) await w.salvarVeiculo({ doContinuar: true });   // salva o veículo preenchido antes de seguir
         if (valid()) { w.step++; paint(); window.scrollTo(0, 0); }
       }));
   }

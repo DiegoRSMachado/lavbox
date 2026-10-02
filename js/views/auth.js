@@ -43,7 +43,11 @@ export async function login({ root, me }) {
     h('a', { class: 'link', href: '#/cadastro?role=cliente' }, 'Ainda não tenho conta'));
   form.addEventListener('submit', async (e) => {
     e.preventDefault(); err.textContent = '';
+    const btn = form.querySelector('button[type=submit]');
+    if (btn.disabled) return;
+    btn.disabled = true; btn.classList.add('busy');
     try { await enter(email.value.trim(), pass.value); } catch (x) { err.textContent = x.message; }
+    finally { btn.disabled = false; btn.classList.remove('busy'); }
   });
   mount(root, form);
 }
@@ -85,6 +89,9 @@ export async function signup({ root, me }) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault(); err.textContent = '';
+    const btn = form.querySelector('button[type=submit]');
+    if (btn.disabled) return;
+    btn.disabled = true; btn.classList.add('busy');
     try {
       if (nome.value.trim().length < 2) throw new Error('Informe seu nome.');
       if (!/^\S+@\S+\.\S+$/.test(email.value)) throw new Error('E-mail inválido.');
@@ -96,10 +103,11 @@ export async function signup({ root, me }) {
           servicos: svcChecks.filter(({ cb }) => cb.checked).map(({ s }) => s.id) };
         if (!payload.washer.servicos.length) throw new Error('Selecione ao menos um serviço.');
       }
-      await api.signUp(payload);
+      const papel = (await api.signUp(payload)) || role;
       toast('Conta criada!', 'ok');
-      go(`/${role}`);
+      go(`/${papel}`);
     } catch (x) { err.textContent = x.message; }
+    finally { btn.disabled = false; btn.classList.remove('busy'); }
   });
   mount(root, form);
 }
