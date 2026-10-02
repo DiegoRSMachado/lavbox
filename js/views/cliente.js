@@ -48,16 +48,19 @@ export async function wizard({ root, api }) {
     const paintTipo = () => tipo.replaceChildren(...VEHICLE_TYPES.map((t) =>
       h('button', { type: 'button', class: 'chip' + (vt === t.id ? ' on' : ''), onclick: () => { vt = t.id; paintTipo(); } }, `${t.icon} ${t.label}`)));
     paintTipo();
+    // Salva o veículo do formulário. Também é chamado pelo "Continuar", para quem preenche e não toca em "Salvar veículo".
+    const salvar = async () => {
+      if (modelo.value.trim().length < 2) throw new Error('Informe o modelo do veículo.');
+      const v = await api.addVehicle({ tipo: vt, modelo: modelo.value.trim(), cor: cor.value.trim() });
+      vehicles = await api.vehicles(); w.vehicle_id = v.id; w.addingVehicle = false; w.salvarVeiculo = null;
+    };
+    w.salvarVeiculo = w.addingVehicle ? salvar : null;
     const addForm = h('div', { class: 'card form inner' },
       h('h3', {}, 'Novo veículo'), tipo,
       h('label', { class: 'field' }, h('span', {}, 'Modelo'), modelo),
       h('label', { class: 'field' }, h('span', {}, 'Cor (opcional)'), cor),
       h('div', { class: 'row' },
-        actionButton('Salvar veículo', async () => {
-          if (modelo.value.trim().length < 2) throw new Error('Informe o modelo.');
-          const v = await api.addVehicle({ tipo: vt, modelo: modelo.value.trim(), cor: cor.value.trim() });
-          vehicles = await api.vehicles(); w.vehicle_id = v.id; w.addingVehicle = false; paint();
-        }, 'btn primary sm'),
+        actionButton('Salvar veículo', async () => { await salvar(); paint(); }, 'btn primary sm'),
         vehicles.length ? h('button', { class: 'btn ghost sm', type: 'button', onclick: () => { w.addingVehicle = false; paint(); } }, 'Cancelar') : null));
     if (w.addingVehicle) return addForm;
     return h('div', {},
@@ -160,7 +163,10 @@ export async function wizard({ root, api }) {
         });
         toast('Pedido enviado aos lavadores!', 'ok');
         go(`/cliente/pedido/${r.id}`);
-      }) : actionButton(`Continuar · ${money(total())}`, async () => { if (valid()) { w.step++; paint(); window.scrollTo(0, 0); } }));
+      }) : actionButton(`Continuar · ${money(total())}`, async () => {
+        if (w.step === 0 && w.addingVehicle && w.salvarVeiculo) await w.salvarVeiculo();   // salva o veículo preenchido antes de seguir
+        if (valid()) { w.step++; paint(); window.scrollTo(0, 0); }
+      }));
   }
   mount(root, bar, body, nav);
   paint();

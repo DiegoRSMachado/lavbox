@@ -125,6 +125,20 @@ with sync_playwright() as p:
     C.get_by_role("button", name="Criar conta").click()
     expect(C.get_by_role("heading", name="Olá, Bruno")).to_be_visible(); shot(C, "17_lavador_home")
 
+    # ---- cliente NOVO sem veículo: preenche o modelo e toca direto em "Continuar" (deve salvar e seguir) ----
+    N = ctx.new_page(); N.goto(BASE + "#/cadastro?role=cliente")
+    N.get_by_placeholder("Nome completo").fill("Izabel Teste"); N.get_by_placeholder("voce@email.com").fill("izabel@teste.com")
+    N.get_by_placeholder("mínimo 8 caracteres").fill("senhaforte123"); N.get_by_role("button", name="Criar conta").click()
+    expect(N.get_by_role("heading", name="Olá, Izabel")).to_be_visible()
+    N.get_by_role("link", name="＋ Pedir lavagem").click()
+    expect(N.get_by_text("Novo veículo")).to_be_visible()
+    N.get_by_role("button", name="Continuar").click()                       # vazio: deve pedir o modelo
+    expect(N.get_by_text("Informe o modelo do veículo.")).to_be_visible()
+    N.get_by_role("button", name="🛻 Caminhonete").click(); N.get_by_placeholder("Ex.: Honda Civic").fill("Civic")
+    N.get_by_role("button", name="Continuar").click()                       # sem tocar em "Salvar veículo"
+    expect(N.get_by_role("heading", name="Tipo de lavagem")).to_be_visible(); shot(N, "21_veiculo_salvo_pelo_continuar")
+    print("Cliente novo: veículo salvo pelo Continuar ✔")
+
     # ---- rota otimizada (prestador): simulação de 5 paradas ----
     C.goto(BASE + "#/lavador/rota")
     C.get_by_role("button", name="Simular 5 paradas").click()

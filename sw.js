@@ -1,7 +1,7 @@
 // Service Worker do LAVBOX.
 // Estratégia: rede primeiro (sempre pega a versão nova após deploy) com fallback ao cache (app abre offline).
 // Só intercepta GET do mesmo domínio: chamadas ao Supabase (REST/WebSocket) NUNCA passam pelo cache.
-const VERSION = 'lavbox-v4';
+const VERSION = 'lavbox-v5';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'vendor/supabase.js', 'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css', 'vendor/leaflet/images/marker-icon.png', 'vendor/leaflet/images/marker-shadow.png',
